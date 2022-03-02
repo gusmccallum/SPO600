@@ -1,0 +1,113 @@
+ ; ZERO-PAGE ADDRESSES
+define 		INPUT		$10
+define 		INPUT_H		$11
+
+;CONSTANTS
+define		STRING1		$00 	; LOW BYTE
+define		STRING1_H	$10 	; HIGH BYTE
+
+define		LIMIT		20 	; MAX NUMBER OF INPUT CHARS
+
+ ; ROM ROUTINES
+define 		SCINIT		$ff81 	; initialize/clear screen
+define 		CHRIN		$ffcf 	; input character from kb
+define 		CHROUT		$ffd2 	; output character to screen
+define		SCREEN		$ffed 	; get screen size
+define 		PLOT		$fff0 	; get/set cursor coordinates
+
+prompt:		LDY #$00
+nextchar:	LDA msg,Y
+		BEQ doneprompt
+		JSR CHROUT
+		INY
+		BNE nextchar
+
+doneprompt:	LDA #STRING1
+		STA INPUT
+		LDA #STRING1_H
+		STA INPUT_H
+
+		LDA #$A0
+		JSR CHROUT
+		LDA #$83
+		JSR CHROUT
+
+		LDY #$00		; NUMBER OF CHARS RECEIVED
+
+getchar:	JSR CHRIN		; GET A CHAR
+		CMP #$00
+		BEQ getchar
+
+		CMP #$08		; BACKSPACE KEY
+		BEQ backspace
+
+		CMP #$0D		; ENTER KEY
+		BEQ gotstring
+
+		CMP #$20		; GET ANOTHER CHAR IF NOT
+		BMI getchar		; PRINTABLE
+		CMP #$7f
+		BPL getchar
+
+		CPY #LIMIT
+		BEQ getchar
+
+		JSR CHROUT
+		STA (INPUT),Y
+
+		LDA #$A0
+		JSR CHROUT
+		LDA #$83
+		JSR CHROUT
+
+		INY
+		JMP getchar
+
+backspace:	CPY #$00
+		BEQ getchar
+		
+		DEY
+
+		LDA #$20		; ERASES BLOCK
+		JSR CHROUT
+		LDA #$83		; MOVES BACK TO BLOCK POS
+		JSR CHROUT
+		LDA #$83		; MOVES BACK TO DELETED CHAR		
+		JSR CHROUT
+		LDA #$20		; ERASES DELETED CHAR
+		JSR CHROUT
+		LDA #$83		; MOVES BACK TO DELETE CHAR
+		JSR CHROUT
+		LDA #$A0		; DRAW BLOCK
+		JSR CHROUT
+		LDA #$83		; MOVE BACK TO BLOCK
+		JSR CHROUT
+
+		JSR getchar
+
+gotstring:	LDA #$00
+		STA (INPUT),Y
+
+		LDY #$00
+gotstring2:	LDA msg2,Y
+		BEQ printinput
+		JSR CHROUT
+		INY
+		JMP gotstring2
+
+
+printinput:	LDY #$00
+printinput2: 	LDA (INPUT),Y
+		BEQ printdone
+		JSR CHROUT
+		INY
+		JMP printinput2
+
+printdone:	BRK
+
+msg:
+dcb "E","n","t","e","r",32,"t","e","x","t",":",32,0,$0d 
+
+msg2:
+dcb: $0d,$0d,$0d,"Y","o","u",32,"e","n","t","e","r","e","d",32,0
+
